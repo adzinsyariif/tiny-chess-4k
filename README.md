@@ -6,12 +6,18 @@ engine in ≤ 4 KB of Python", Python 3.13, standard library only).
 
 ## Layout
 
-- `main.py` — the submitted engine (4,053 bytes as committed). It is an
-  lzma + base85 packed form of `engine.py` behind a two-line unpacker,
-  a packaging the rules explicitly allow (the house baseline ships the
-  same way).
-- `engine.py` — the full readable source, and itself a runnable bot.
-- `pack.py` — regenerates `main.py` from `engine.py` deterministically.
+The submitted snapshot holds three files:
+
+- `main.py` — the engine (4,053 bytes as committed), self-contained:
+  an lzma + base85 packed payload behind a two-line unpacker, a
+  packaging the rules explicitly allow (the house baseline ships the
+  same way). It reads no other file of the repository.
+- `README.md` — this file.
+- `LICENSE` — MIT.
+
+In development the payload was packed from a readable source by a
+deterministic packer; neither ships here (the tree cap leaves no
+room for them).
 
 ## Engine design
 
@@ -28,8 +34,19 @@ engine in ≤ 4 KB of Python", Python 3.13, standard library only).
   separate endgame king table), bishop-pair bonus. Root moves are
   filtered against the environment's `legal_moves` list; in-search
   repetition and game-history positions score as draws.
-- Protocol: reads `MAKEFUN_ENV_URL`, plays via `POST /game` and
-  `POST /move` as the kit specifies.
+
+## How it plays
+
+`python3 main.py` (Python 3.13, standard library only, no model
+calls) reads the env origin from `MAKEFUN_ENV_URL` — the only
+variable it reads — and plays the trial's games over the env's JSON
+routes: `POST /game` for the game in play, `POST /move` with its
+move in UCI notation (e2e4, e7e8q; castling is the king's move),
+until a `POST /game` answers `{"status": "done"}` and it exits.
+The position and legal moves come from the env's answers (`fen`,
+`legal_moves`); it reads no brief and no other file. The fixed node
+budget, never a clock, keeps every move well under the 10 s limit
+and the replay identical.
 
 ## Local verification
 
@@ -37,9 +54,13 @@ Verified before submission with the kit's own practice harness
 (6 games per trial vs the fixed anchor gauntlet; the sunfish NNUE 4K
 baseline's practice ratings are 1364 / 1451 / 1279, mean 1365):
 
-- practice trial 0: **Elo 1364** (2 won, 3 drawn, 1 lost), slowest move
-  3.5 s of the 10 s limit, well inside the trial wall budget.
+- practice trial 0: **Elo 1364** (2 won, 3 drawn, 1 lost) — parity
+  with the baseline's practice mean, and well above the 1,154 Elo
+  floor for the final. Slowest move 3.5 s of the 10 s limit.
 - Move generation and the incremental state were verified exactly
   against from-scratch recomputation over 40 random games, move by move.
+- Smoke test (2026-11-20): run against a local mock env serving the
+  position after 1.e4 e5, it answered `b1c3`, a legal move, in ~3 s
+  of wall time all-in, and exited 0 on `done`.
 
 MIT licensed.
